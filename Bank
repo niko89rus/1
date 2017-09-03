@@ -1,0 +1,1016 @@
+#include <iostream>
+#include <string>
+#include <conio.h>
+#include <time.h>
+#include <fstream>
+#include <cstdlib>
+
+using namespace std;
+
+struct BankAccount {
+	//номер счета
+	string Id;
+	//пин
+	string pin;
+	//баланс
+	int cash;
+	//заморожен аккаунт или нет
+	bool frozen = false;
+};
+
+enum Status {
+	//Статусы транзакций: Успешно, неправильный айди получателя, нет денег, другая ошибка
+	True, IncorIdGet, NoMoney, OtherError
+};
+
+struct Transaction {
+	//айди отправителя
+	string sendId;
+	//айди получателя
+	string getId;
+	//время транцакции
+	int time;
+	//номер транзакции
+	int transacId;
+	//количество денег 
+	int money;
+	// статус транзакции
+	Status status;
+};
+
+
+//название файла для Аккаунтов
+const string fileName = "base.txt";
+// название файлов для транцакций
+const string TransacfileName = "Transaction.txt";
+//максимальный размер массива с транзакциями и аккаунтами
+const int maxLength = 1000;
+//число созданных аккаунтов
+int AccountlastIndex = 0;
+//число транзакций
+int TransactionLastIndex = 0;
+//массив под аккаунты
+BankAccount accounts[maxLength];
+//массив под транцакции
+Transaction transaction[maxLength];
+
+
+/*
+Возвращает Статусы транзакций: Успешно, неправильный айди получателя, нет денег, другая ошибка
+*/
+string checkStatus(Status type) {
+	switch (type)
+	{
+	case True:
+		return "True";
+		break;
+	case IncorIdGet:
+		return "IncorIdGet";
+		break;
+	case NoMoney:
+		return "NoMoney";
+		break;
+	case OtherError:
+		return "OtherError";
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+Функция которая считывает с файла аккаунтов и записывает их в массив
+*/
+void onStartAccount() {
+	ifstream fin(fileName);
+	if (!fin.is_open()) {
+		return;
+	}
+	while (!fin.eof() && AccountlastIndex < maxLength) {
+		fin >> accounts[AccountlastIndex].Id;
+		if (fin.eof()) {
+			break;
+		}
+		fin >> accounts[AccountlastIndex].pin
+			>> accounts[AccountlastIndex].cash
+		    >> accounts[AccountlastIndex].frozen;
+
+		AccountlastIndex++;
+	}
+	fin.close();
+}
+
+/*
+Функция которая считывает с файла транзакций и записывает их в массив
+*/
+void onStartTransc() {
+	int a;
+	ifstream fin(TransacfileName);
+	while (!fin.eof() && TransactionLastIndex < maxLength) {
+		fin >> transaction[TransactionLastIndex].sendId;
+		fin >> transaction[TransactionLastIndex].getId;
+		if (fin.eof()) {
+			break;
+		}
+		fin >> transaction[TransactionLastIndex].time
+			>> transaction[TransactionLastIndex].transacId
+			>> transaction[TransactionLastIndex].money
+			>> a;
+		transaction[TransactionLastIndex].status = (Status)a;
+		TransactionLastIndex++;
+	}
+	fin.close();
+}
+
+/*
+Создает транзакцию по отправленным в функцию данным
+*/
+void Transactions(string _sendId, string _getId, int _time, int _transacId, int _money, Status _status) {
+	transaction[TransactionLastIndex].sendId = _sendId;
+	transaction[TransactionLastIndex].getId = _getId;
+	transaction[TransactionLastIndex].time = _time;
+	transaction[TransactionLastIndex].transacId = _transacId;
+	transaction[TransactionLastIndex].money = _money;
+	transaction[TransactionLastIndex].status = _status;
+	TransactionLastIndex++;
+}
+
+/*
+Функция генерирует 6 случайных чисел и записывает их как строку
+*/
+string randId() {
+	string id;
+	int intId = 0;
+	srand(time(0));
+	for (int i = 0; i < 6; i++) {
+		id += to_string(rand() % 10);
+	}
+	return id;
+}
+
+/*
+Функция проверяет не совпадает ли новый созданный id с уже имеющимися,
+если совпадает возвращаем true, иначе false
+*/
+bool checkSame(string id) {
+	for (int i = 0; i < AccountlastIndex; i++) {
+		if (accounts[i].Id == id) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+После генерации id он проверяется на уникальность, если проверка проходится id создается,
+иначе генерируется новый
+*/
+void accountCreatId() {
+	string id = randId();
+	while (checkSame(id)) {
+		id = randId();
+	}
+	accounts[AccountlastIndex].Id = id;
+}
+
+/*
+Проверяет не состоит ли пин не из цифр
+*/
+bool checkCorrectPin(char i) {
+	if ((int)i < 48 || (int)i >57) {
+		cout << "Zaprescenniy simvol" << endl;
+		return true;
+	}
+	return false;
+}
+
+/*
+Генерирует случайный пин из 4 чисел
+*/
+void accountCreatRandPin() {
+	char pin[5];
+	int i;
+	srand(time(0));
+	for (i = 0; i < 4; i++) {
+		int n = rand() % 9;
+		pin[i] = n + 48;
+	}
+	pin[i] = '\0';
+	accounts[AccountlastIndex].pin = string(pin);
+}
+
+/*
+Вводится пин из 4 символов, используется getch что бы не было видно что вводит пользователь,
+каждый символ проверяется на не число, если возвращается true, пин генерируется случайный
+*/
+void accountCreatPin() {
+	char pin[5];
+	int i;
+	for (i = 0; i < 4; i++) {
+		pin[i] = getch();
+		if (checkCorrectPin(pin[i])) {
+			accountCreatRandPin();
+			cout << "Vas pin sgenerirovalsiy avtomaticeski " << accounts[AccountlastIndex].pin << endl;
+			return;
+		}
+		cout << '*';
+	}
+	cout << endl;
+	pin[i] = '\0';
+	accounts[AccountlastIndex].pin = string(pin);
+}
+
+/*
+Меню выбора ввода пина или случайной его генерации
+*/
+void accountCreatIdMenu() {
+	cout << "Jeto vash novyj id zapishite ego " << accounts[AccountlastIndex].Id << endl;
+	cout << "Hotite sozdat' pin? Inache on sgeneriruetsja avtomaticheski" << endl;
+	cout << "1. Da" << endl
+		<< "2. Net" << endl;
+}
+
+/*
+Функция дает выбор между случайной генерацией пина или вводом пина самого пользователя
+*/
+void accountCreatIdSwitch() {
+	accountCreatIdMenu();
+	int input;
+	while (true) {
+		cin >> input;
+		switch (input)
+		{
+		case 1:
+			cout << "Vvedite 4 znachnyj pin" << endl;
+			accountCreatPin();
+			return;
+			break;
+		case 2:
+			accountCreatRandPin();
+			cout << "Vash novyj pin kod, zapishite ego " << accounts[AccountlastIndex].pin << endl;
+			return;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+/*
+Проверяет введнный пользователем id на наличие его в массиве аккаунтов,
+если есть такой id возвращает его индекс в массиве, иначе возвращает -1
+*/
+int authorizationId() {
+	string a;
+	cin >> a;
+	for (int i = 0; i < AccountlastIndex; i++) {
+		if (a == accounts[i].Id) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+/*
+Функция принимает индекс элемента массива аккаунтов, просит ввести пин,
+при вводе пина его не видно, вместо пина печатается "*", пин переводится в строку,
+проверяется на совпадение с пином аккаунта данного индекса, если совпадает возвращает true,
+иначе false
+*/
+bool authorizationPin(int index) {
+	char pin[5];
+	int i;
+	for (i = 0; i < 4; i++) {
+		pin[i] = getch();
+		cout << '*';
+	}
+	pin[i] = '\0';
+	cout << endl;
+	string a;
+	a = string(pin);
+	if (accounts[index].pin == a) {
+		return true;
+	}
+	cout << endl;
+	return false;
+}
+
+/*
+Получает значение которое возвращает authorizationId и authorizationPin,
+если оба значения больше 0, то возвращается индекс елемента,
+иначе возвращается -1
+*/
+int checkIdPin() {
+	int index = authorizationId();
+	int a = 0;
+	if (accounts[index].frozen == true) {
+		cout << "Akkaunt zablokirovan" << endl;
+		return -1;
+	}
+	while (true) {
+		cout << "Vvedite pin" << endl;
+		int pin = authorizationPin(index);
+		if (index >= 0) {
+			if (pin) {
+				return index;
+			}
+		}
+		cout << "Nepravilniy pin" << endl;
+		a++;
+		if (a == 3) {
+			accounts[index].frozen = true;
+			cout << "Akkaunt zablokirovan" << endl;
+			break;
+		}
+	}
+	return -1;
+}
+
+/*
+Проверяет не вводится ли отрицательное значение
+*/
+bool checkInputMinus(int input) {
+	if (input <= 0) {
+		cout << "Vy vvodite otricatel'noe chislo ili 0" << endl;
+		return true;
+	}
+	return false;
+}
+
+/*
+Принимает индекс аккаунта, прибавляет  к cash данного аккаунта введенную пользователем сумму,
+если условия удовлетворяются. Создается транзакция, не зависимо от того удовлетворилось условие или нет.
+*/
+void cashAdd(int index) {
+	cout << "Vvedite summu popolnenija" << endl;
+	int input;
+	cin >> input;
+	if (checkInputMinus(input)) {
+		Transactions(accounts[index].Id, accounts[index].Id, time(0), TransactionLastIndex, input, OtherError);
+		return;
+	}
+	if (input > 10000) {
+		cout << "Limit popolnenija 10000!" << endl;
+		Transactions(accounts[index].Id, accounts[index].Id, time(0), TransactionLastIndex, input, OtherError);
+		return;
+	}
+	cout << "Balans popolnen" << endl;
+	accounts[index].cash += input;
+	Transactions(accounts[index].Id, accounts[index].Id, time(0), TransactionLastIndex, input, True);
+}
+
+/*
+Принимает индекс аккаунта, вычитает из cash данного аккаунта введенную пользователем сумму,
+если условия удовлетворяются. Создается транзакция, не зависимо от того удовлетворилось условие или нет.
+*/
+void cashOut(int index) {
+	cout << "VVedite summu vivoda" << endl;
+	int input;
+	cin >> input;
+	if (input > accounts[index].cash) {
+		cout << "Nedostatocno sredstv" << endl;
+		Transactions(accounts[index].Id, accounts[index].Id, time(0), TransactionLastIndex, -input, NoMoney);
+		return;
+	}
+	if (checkInputMinus(input)) {
+		Transactions(accounts[index].Id, accounts[index].Id, time(0), TransactionLastIndex, input, OtherError);
+		return;
+	}
+	cout << "Uspeshno" << endl;
+	accounts[index].cash -= input;
+	Transactions(accounts[index].Id, accounts[index].Id, time(0), TransactionLastIndex, -input, True);
+}
+
+/*
+Принимает индекс аккаунта, если все условия удовлетворяются, то переводит введенное количество денег
+с одного аккаунта на другой. Создается транзакция, не зависимо от того удовлетворилось условие или нет.
+*/
+void sendMoney(int index) {
+	int input = -1;
+	cout << "Vvedite id akkaunta polucatelya" << endl;
+	int getIndex = authorizationId();
+	if (getIndex < 0) {
+		cout << "Nepravilniy id polucatelya" << endl;
+		Transactions(accounts[index].Id, "0", time(0), TransactionLastIndex, input, IncorIdGet);
+		return;
+	}
+	cout << "Vvedite summu otpavki" << endl;
+	cin >> input;
+	if (input > accounts[index].cash) {
+		cout << "Nedostatocno sredstv" << endl;
+		Transactions(accounts[index].Id, accounts[getIndex].Id, time(0), TransactionLastIndex, input, NoMoney);
+		return;
+	}
+	if (checkInputMinus(input)) {
+		Transactions(accounts[index].Id, accounts[getIndex].Id, time(0), TransactionLastIndex, input, OtherError);
+		return;
+	}
+	accounts[index].cash -= input;
+	accounts[getIndex].cash += input;
+	cout << "Uspeshniy perevod" << endl;
+	Transactions(accounts[index].Id, accounts[getIndex].Id, time(0), TransactionLastIndex, input, True);
+}
+
+/*
+По отправленному индексу печатает cash аккаунта
+*/
+void printCash(int index) {
+	cout << "Vash balans " << accounts[index].cash << endl;
+}
+
+/*
+Принимает индекс транзакции и время транзакции, печатает транзакцию
+пример:
+sendId 123456 getId 342411 transacId 21 money 1000 status True Data:  2017:7:14 18:14:34
+*/
+void printTransac(int i,tm *transacTmp) {
+	cout << "sendId " << transaction[i].sendId << " getId " << transaction[i].getId << " transacId "
+		<< transaction[i].transacId << " money "
+		<< transaction[i].money << " status " << checkStatus((Status)transaction[i].status) << " Data:  "
+		<< transacTmp->tm_year + 1900 << ":" << transacTmp->tm_mon + 1 << ":" << transacTmp->tm_mday << " "
+		<< transacTmp->tm_hour << ":" << transacTmp->tm_min << ":" << transacTmp->tm_sec << endl;
+}
+
+/*
+Если в dataSwitchTrue выбирается "1", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchTrueCase1(int index,tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status == 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					if (transacTmp.tm_mon == thisTmp->tm_mon) {
+						if (transacTmp.tm_mday == thisTmp->tm_mday) {
+							printTransac(i, &transacTmp);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchTrue выбирается "2", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchTrueCase2(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status == 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					if (transacTmp.tm_mon == thisTmp->tm_mon) {
+						if (transacTmp.tm_mday <= thisTmp->tm_mday && transacTmp.tm_mday >= thisTmp->tm_mday - 6) {
+							printTransac(i, &transacTmp);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchTrue выбирается "3", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchTrueCase3(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status == 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					if (transacTmp.tm_mon == thisTmp->tm_mon) {
+						printTransac(i, &transacTmp);
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchTrue выбирается "4", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchTrueCase4(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status == 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					printTransac(i, &transacTmp);
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchTrue выбирается "5", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента
+*/
+void dataSwitchTrueCase5(int index) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status == 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				printTransac(i, &transacTmp);
+			}
+		}
+	}
+}
+
+/*
+Функция для вывода упешных транзакций за сегодня, за неделю, за месяц, за год, все.
+*/
+void dataSwitchTrue(int index) {
+	int input;
+	cin >> input;
+	time_t thisTime = 0;
+	time(&thisTime);
+	struct tm thisTmp;
+	localtime_s(&thisTmp, &thisTime);
+	switch (input) {
+	case 1:
+		dataSwitchTrueCase1(index, &thisTmp);
+		break;
+	case 2:
+		dataSwitchTrueCase2(index, &thisTmp);
+		break;
+	case 3:
+		dataSwitchTrueCase3(index, &thisTmp);
+		break;
+	case 4:
+		dataSwitchTrueCase4(index, &thisTmp);
+		break;
+	case 5:
+		dataSwitchTrueCase5(index);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+Если в dataSwitchError выбирается "1", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchErrorCase1(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status != 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					if (transacTmp.tm_mon == thisTmp->tm_mon) {
+						if (transacTmp.tm_mday == thisTmp->tm_mday) {
+							printTransac(i, &transacTmp);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchError выбирается "2", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchErrorCase2(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status != 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					if (transacTmp.tm_mon == thisTmp->tm_mon) {
+						if (transacTmp.tm_mday <= thisTmp->tm_mday && transacTmp.tm_mday >= thisTmp->tm_mday - 6) {
+							printTransac(i, &transacTmp);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchError выбирается "3", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchErrorCase3(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status != 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					if (transacTmp.tm_mon == thisTmp->tm_mon) {
+						printTransac(i, &transacTmp);
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchError выбирается "4", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchErrorCase4(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status != 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				if (transacTmp.tm_year == thisTmp->tm_year) {
+					printTransac(i, &transacTmp);
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchError выбирается "5", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента 
+*/
+void dataSwitchErrorCase5(int index) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			if (transaction[i].status != 0) {
+				time_t transacTime = transaction[i].time;
+				struct tm transacTmp;
+				localtime_s(&transacTmp, &transacTime);
+				printTransac(i, &transacTmp);
+			}
+		}
+	}
+}
+
+/*
+Функция для вывода не упешных транзакций за сегодня, за неделю, за месяц, за год, все.
+*/
+void dataSwitchError(int index) {
+	int input;
+	cin >> input;
+	time_t thisTime = 0;
+	time(&thisTime);
+	struct tm thisTmp;
+	localtime_s(&thisTmp, &thisTime);
+	switch (input) {
+	case 1:
+		dataSwitchErrorCase1(index, &thisTmp);
+		break;
+	case 2:
+		dataSwitchErrorCase2(index, &thisTmp);
+		break;
+	case 3:
+		dataSwitchErrorCase3(index, &thisTmp);
+		break;
+	case 4:
+		dataSwitchErrorCase4(index, &thisTmp);
+		break;
+	case 5:
+		dataSwitchErrorCase5(index);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+Если в dataSwitchAll выбирается "1", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchAllCase1(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			time_t transacTime = transaction[i].time;
+			struct tm transacTmp;
+			localtime_s(&transacTmp, &transacTime);
+			if (transacTmp.tm_year == thisTmp->tm_year) {
+				if (transacTmp.tm_mon == thisTmp->tm_mon) {
+					if (transacTmp.tm_mday == thisTmp->tm_mday) {
+						printTransac(i, &transacTmp);
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchAll выбирается "2", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchAllCase2(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			time_t transacTime = transaction[i].time;
+			struct tm transacTmp;
+			localtime_s(&transacTmp, &transacTime);
+			if (transacTmp.tm_year == thisTmp->tm_year) {
+				if (transacTmp.tm_mon == thisTmp->tm_mon) {
+					if (transacTmp.tm_mday <= thisTmp->tm_mday && transacTmp.tm_mday >= thisTmp->tm_mday - 6) {
+						printTransac(i, &transacTmp);
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchAll выбирается "3", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchAllCase3(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			time_t transacTime = transaction[i].time;
+			struct tm transacTmp;
+			localtime_s(&transacTmp, &transacTime);
+			if (transacTmp.tm_year == thisTmp->tm_year) {
+				if (transacTmp.tm_mon == thisTmp->tm_mon) {
+					printTransac(i, &transacTmp);
+				}
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchAll выбирается "4", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента и время создания данной транзакции
+*/
+void dataSwitchAllCase4(int index, tm *thisTmp) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			time_t transacTime = transaction[i].time;
+			struct tm transacTmp;
+			localtime_s(&transacTmp, &transacTime);
+			if (transacTmp.tm_year == thisTmp->tm_year) {
+				printTransac(i, &transacTmp);
+			}
+		}
+	}
+}
+
+/*
+Если в dataSwitchAll выбирается "5", проверяет удовлетворяется ли всем условиям,
+и запускает printTransac отправляя индекс элемента 
+*/
+void dataSwitchAllCase5(int index) {
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		if (accounts[index].Id == transaction[i].sendId || accounts[index].Id == transaction[i].getId) {
+			time_t transacTime = transaction[i].time;
+			struct tm transacTmp;
+			localtime_s(&transacTmp, &transacTime);
+			printTransac(i, &transacTmp);
+		}
+	}
+}
+
+/*
+Функция для вывода всех транзакций за сегодня, за неделю, за месяц, за год, все.
+*/
+void dataSwitchAll(int index) {
+	int input;
+	cin >> input;
+	time_t thisTime = 0;
+	time(&thisTime);
+	struct tm thisTmp;
+	localtime_s(&thisTmp, &thisTime);
+	switch (input) {
+	case 1:
+		dataSwitchAllCase1(index, &thisTmp);
+		break;
+	case 2:
+		dataSwitchAllCase2(index, &thisTmp);
+		break;
+	case 3:
+		dataSwitchAllCase3(index, &thisTmp);
+		break;
+	case 4:
+		dataSwitchAllCase4(index, &thisTmp);
+		break;
+	case 5:
+		dataSwitchAllCase5(index);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+Меню выбора за какое время вывести
+*/
+void dataMenu() {
+	cout << "1. Za segodnja" << endl
+		<< "2. Za nedelju" << endl
+		<< "3. Za mesjac" << endl
+		<< "4. Za god" << endl
+		<< "5. All" << endl;
+}
+
+/*
+Делает действие выбранное в transacMenu
+*/
+void transacSwitch(int index) {
+	int input;
+	cin >> input;
+	switch (input) {
+	case 1:
+		dataMenu();
+		dataSwitchTrue(index);
+		break;
+	case 2:
+		dataMenu();
+		dataSwitchError(index);
+		break;
+	case 3:
+		dataMenu();
+		dataSwitchAll(index);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+Функция для изменения пина
+*/
+void editPin(int index) {
+	cout << "Vvedite noviy pin" << endl;
+	char pin[5];
+	int i;
+	for (i = 0; i < 4; i++) {
+		pin[i] = getch();
+		if (checkCorrectPin(pin[i])) {
+			return;
+		}
+		cout << '*';
+	}
+	cout << endl;
+	pin[i] = '\0';
+	cout << "Pin izmenen" << endl;
+	accounts[index].pin = string(pin);
+}
+
+/*
+Проверяет правильность введенных id и pin,
+если все правильно возвращает индекс аккаунта в который вошли
+иначе возвращает -1
+*/
+int authorization() {
+	int a;
+	cout << "1. Vvedite id(nomer scheta)." << endl;
+	a = checkIdPin();
+	if (a >= 0) {
+		cout << "Vy voshli v akkaunt" << endl;
+		return a;
+	}
+	a = -1;
+	cout << "Nepravil'nyj nomer scheta ili pin" << endl;
+	return a;
+}
+
+/*
+Меню выбора что вывести успешные транзакции, не успешные и все
+*/
+void transacMenu() {
+	cout << "1. Uspeshnye tranzakcii" << endl
+		<< "2. Ne uspeshnye" << endl
+		<< "3. All" << endl;
+}
+
+/*
+Функция запускается при выходе из программы записывает массив аккаунтов в fileName
+*/
+void onExitAccount() {
+	ofstream fout(fileName);
+	for (int i = 0; i < AccountlastIndex; i++) {
+		fout << accounts[i].Id << " " << accounts[i].pin << " " << accounts[i].cash << " " << accounts[i].frozen << endl;
+	}
+	fout.close();
+}
+
+/*
+Функция запускается при выходе из программы записывает массив транзакций в TransacfileName
+*/
+void onExitTransc() {
+	ofstream fout(TransacfileName);
+	for (int i = 0; i < TransactionLastIndex; i++) {
+		fout << transaction[i].sendId << " " << transaction[i].getId << " "
+			<< transaction[i].time << " " << transaction[i].transacId << " "
+			<< transaction[i].money << " " << transaction[i].status << endl;
+	}
+	fout.close();
+}
+
+/*
+Меню выбора Menu
+*/
+void PrintMenu() {
+	cout << "1. Otkryt' schet" << endl
+		<< "2. Popolnenie balansa." << endl
+		<< "3. Snjatie deneg so scheta" << endl
+		<< "4. Perevod deneg s odnogo scheta na drugoj." << endl
+		<< "5. Proverka balansa." << endl
+		<< "6. Informacija o tranzakcijah." << endl
+		<< "7. Smenit pin" << endl
+		<< "8. Exit" << endl;
+}
+
+/*
+Основная функция, запускает выбранное в PrintMenu
+*/
+void Menu() {
+	onStartAccount();
+	onStartTransc();
+	int index;
+	while (true) {
+		PrintMenu();
+		int input;
+		cin >> input;
+		switch (input)
+		{
+		case 1:
+			accountCreatId();
+			accountCreatIdSwitch();
+			AccountlastIndex++;
+			break;
+		case 2:
+			index = authorization();
+			if (index >= 0) {
+				cashAdd(index);
+			}
+			break;
+		case 3:
+			index = authorization();
+			if (index >= 0) {
+				cashOut(index);
+			}
+			break;
+		case 4:
+			index = authorization();
+			if (index >= 0) {
+				sendMoney(index);
+			}
+			break;
+		case 5:
+			index = authorization();
+			if (index >= 0) {
+				printCash(index);
+			}
+			break;
+		case 6:
+			index = authorization();
+			if (index >= 0) {
+				transacMenu();
+				transacSwitch(index);
+			}
+			break;
+		case 7:
+			index = authorization();
+			if (index >= 0) {
+				editPin(index);
+			}
+			break;
+		case 8:
+			onExitAccount();
+			onExitTransc();
+			return;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+int main()
+{
+	Menu();
+	return 0;
+}
